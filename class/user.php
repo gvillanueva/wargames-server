@@ -25,27 +25,44 @@ class User implements JsonSerializable
         ];
     }
 
-    function create($params)
+//    function create($params)
+//    {
+//        global $db;
+//
+//        if (is_string($params[0]) && is_string($params[1]) && is_string($params[2])) {
+//            $newUser = new self();
+//            $newUser->name = $params[0];
+//            $newUser->password = $params[1];
+//            $newUser->email = $params[2];
+//        } else
+//            throw new Tivoka\Exception\InvalidParamsException('Invalid new user parameters');
+//
+//        $createSql = 'INSERT INTO User VALUES(ordered_uuid(uuid()), NULL, NULL, ?, ?, ?)';
+//        $createStmt = $db->prepare($createSql);
+//        $createStmt->bind_param('sss',
+//            $newUser->name, password_hash($newUser->password, PASSWORD_DEFAULT), $newUser->email);
+//
+//        if (!$createStmt->execute())
+//            throw new Tivoka\Exception\ProcedureException('Failed to create new user. Try again later.');
+//
+//        return $newUser;
+//    }
+    function validateToken($authToken)
     {
         global $db;
 
-        if (is_string($params[0]) && is_string($params[1]) && is_string($params[2])) {
-            $newUser = new self();
-            $newUser->name = $params[0];
-            $newUser->password = $params[1];
-            $newUser->email = $params[2];
-        } else
-            throw new Tivoka\Exception\InvalidParamsException('Invalid new user parameters');
+        // Set up the authentication token validation query
+        $validateSql = 'SELECT AuthToken FROM User WHERE AuthToken = ? AND AuthTokenExpires > NOW()';
+        $validateStmt = $db->prepare($validateSql);
+        $validateStmt->bind_param('s', $authToken);
 
-        $createSql = 'INSERT INTO User VALUES(ordered_uuid(uuid()), NULL, NULL, ?, ?, ?)';
-        $createStmt = $db->prepare($createSql);
-        $createStmt->bind_param('sss',
-            $newUser->name, password_hash($newUser->password, PASSWORD_DEFAULT), $newUser->email);
+        // Execute validation query
+        if (!$validateStmt->execute())
+            throw new \Tivoka\Exception\ProcedureException('User table query error.');
 
-        if (!$createStmt->execute())
-            throw new Tivoka\Exception\ProcedureException('Failed to create new user. Try again later.');
-
-        return $newUser;
+        $validateResult = $validateStmt->get_result();
+        if ($validateResult->num_rows <= 0)
+            throw new \Tivoka\Exception\ProcedureException('Authentication token is invalid or expired.');
     }
 
     function login($params)
