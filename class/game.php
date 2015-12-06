@@ -1,12 +1,7 @@
 <?php
 
-// Piece types
-// 1 = King
-// 2 = Queen
-// 3 = Bishop
-// 4 = Knight
-// 5 = Rook
-// 6 = Pawn
+require('class/unit.php');
+require('class/user.php');
 
 class Game
 {
@@ -35,52 +30,70 @@ class Game
 //        $row = $res->fetch_assoc();
     }
 
+    /*  \brief Gets the state of a game.
+     *  \param The GUID identifying the game.
+     *  \param The GUID identifying a user, presumably a player in the game.
+     */
     function getState($params)
-    {
-    }
-
-    function newGame()
     {
         global $db;
 
-        // Clear the board
-        $db->query('DELETE FROM Pieces');
+        if (count(params) != 1)
+            throw new \Tivoka\Exception\InvalidParamsException("Parameter count mismatch.");
 
-        // Add black's pieces
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 5, 0, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 4, 1, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 3, 2, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 1, 3, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 2, 4, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 3, 5, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 4, 6, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 5, 7, 0)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 0, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 1, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 2, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 3, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 4, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 5, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 6, 1)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 0, 6, 7, 1)');
+        // Set up our game state query
+        $stateSql = 'SELECT Guid, X, Y, Z, Rotation, JsonData FROM Unit WHERE GameGuid = UNHEX(?)';
+        $stateStmt = $db->prepare($stateSql);
+        $stateStmt->bind_param('s', $params[0]);
 
-        // Add whites's pieces
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 0, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 1, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 2, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 3, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 4, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 5, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 6, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 6, 7, 6)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 5, 0, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 4, 1, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 3, 2, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 1, 3, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 2, 4, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 3, 5, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 4, 6, 7)');
-        $db->query('INSERT INTO Pieces VALUES(NULL, 1, 5, 7, 7)');
+        // Execute game state query
+        if (!$stateStmt->execute())
+            throw new Tivoka\Exception\ProcedureException('Unit table query error.');
+
+        // Get all the units
+        $stateResult = $stateStmt->get_result();
+        $stateResult->data_seek(0);
+        $units = [];
+        while ($row = $stateResult->fetch_assoc())
+            $units[] = Unit::fromAssocRow($row);
+
+        return $units;
+    }
+
+    /*  \brief  Creates a new game using the specified system.
+     *  \param  The authentication token of a logged in user.
+     *  \param  The GUID of the system to create a game for.
+     *  \param  The name of the room (must be unique).
+     *  \param  The maximum number of users.
+     *  \param  A password for the game room.
+     */
+    function createGame($params)
+    {
+        global $db;
+
+        // Ensure use is logged in
+        User::validateToken($params[0]);
+
+        // TODO: Maximum number of games for a user to create?
+        $createGameSql = 'INSERT INTO Game VALUES(ordered_uuid(uuid()), ?, ?, ?, ?)';
+        $createGameStmt = $db->prepare($createGameSql);
+        $createGameStmt->bind_param('sssi', $params[1], $params[2], password_hash($params[3], PASSWORD_DEFAULT), $params[4]);
+
+        if (!$createGameStmt->execute())
+            throw new \Tivoka\Exception\ProcedureException('Game table query error.');
+
+        return $game_uuid;
+    }
+
+    function setupGame($params)
+    {
+        // Figure out which creation script to call from system
+        $system->create();
+    }
+
+    function teardownGame($params)
+    {
+
     }
 }
 
