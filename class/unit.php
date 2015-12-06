@@ -2,6 +2,25 @@
 
 class Unit
 {
+    public $guid = '';
+    public $x = 0;
+    public $y = 0;
+    public $z = 0;
+    public $rotation = 0;
+    public $json_data = '';
+
+    static function fromAssocRow($row)
+    {
+        $unit = new self();
+        //$unit->guid = $row['Guid'];
+        $unit->x = $row['X'];
+        $unit->y = $row['Y'];
+        $unit->z = $row['Z'];
+        $unit->rotation = $row['Rotation'];
+        $unit->json_data = $row['JsonData'];
+        return $unit;
+    }
+
     /*!
      * \brief Moves an authenticated user's unit.
      * \param authToken The 64-character authorization token identifying a user.
